@@ -46,7 +46,7 @@ class Server:
             except ValueError:
                 continue
 
-    def write_file(self, name, data):
+    def write_file(self, name, data) -> str:
         with open(name, 'wb') as file:
             file.write(data.encode("ISO-8859-1"))
             return 'File downloaded successfully'
